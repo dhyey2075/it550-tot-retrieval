@@ -100,11 +100,12 @@ The complete project evaluation pipeline is available as an interactive Colab no
 
 ### How to Run in Google Colab:
 1. Open [Google Colab](https://colab.research.google.com).
-2. Clone the repository directly inside Colab:
+2. Clone the repository and navigate into it:
    ```python
-   !git clone https://github.com/dhyey2075/it550-tot-retrieval.git .
+   !git clone https://github.com/dhyey2075/it550-tot-retrieval.git
+   %cd it550-tot-retrieval
    ```
-   *(Or upload `notebooks/tot_project.ipynb` directly; its setup cell will automatically clone the repository for you).*
+   *(Or if opening directly via Colab GitHub tab, open `notebooks/tot_project.ipynb` directly).*
 3. Set Hardware Accelerator to **T4 GPU** (`Runtime` $\to$ `Change runtime type` $\to$ `T4 GPU`).
 4. Click **Runtime** $\to$ **Run all**. All experiments E1–E9, statistical tests, diagnostics, and final tables will execute sequentially.
 
