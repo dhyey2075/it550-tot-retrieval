@@ -1,0 +1,20 @@
+{
+  "exp": "E5-R",
+  "note": "dense rerank of each facet's BM25 candidates (Tier B)",
+  "config": {
+    "corpus_tier": "dense_rerank_bm25",
+    "bm25": {
+      "backend": "pyserini",
+      "k1": null,
+      "b": null,
+      "lead_chars": 1000
+    },
+    "dense": {
+      "preset": "e5-small",
+      "role": "rerank_bm25_candidates"
+    },
+    "rrf_k": 60,
+    "prompt_version": "decomposition_extractive_v1"
+  },
+  "created_utc": "2026-11-12T11:49:46.216325+00:00"
+}

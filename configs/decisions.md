@@ -1,0 +1,16 @@
+# Decision Log
+
+Every design choice gets a new row. Never edit a past decision silently; supersede it with a new row.
+
+| ID | Date | Decision | Options considered | Evidence (split used) | Frozen? |
+|---|---|---|---|---|---|
+| D-01 | 2026-11-12 | **Tier B**: full-corpus BM25 (prefer Anserini 1.77 GB prebuilt index) → dense **reranking** of BM25 top-K candidates. Label all runs `"dense reranking of BM25 candidates"`. Name dense experiments `E2-R` / `E5-R` (not full-corpus dense retrieval). | A full-corpus BM25+dense / **B BM25 then dense rerank** / C reduced sub-corpus | Step A: Anserini index 1.77 GB fits Drive; dense prebuilt 18 GB does not; PyTerrier zip 11.6 GB tight. Step B: `bm25s` sample timing + vector arithmetic in `logs/feasibility/corpus_feasibility.md`; 2026 paper uses the same BM25→dense cascade. | **Frozen** |
+| D-02 | | BM25 parameters, tuned for Recall@1000 (plan 04) | | Train/Dev1 | |
+| D-03 | | Dense model (E5 family included in bake-off) + doc truncation (plan 04) | | Train/Dev1 | |
+| D-04 | | RRF k and depth | | Dev1 | |
+| D-05 | | LLM provider/model (plan 05–06) | | Train | |
+| D-06 | 2026-11-12 | Decomposition: 7-facet extractive schema (`category`, `description`, `people`, `place_setting`, `time_period`, `distinctive_details`, `name_fragments`). Extractive mode chosen over predictive (audit confirms 0% title leakage). E6 fuses per-facet BM25 + Dense lists via RRF $k=60$. | Extractive vs Predictive; 7-facet vs flat; with/without original query | Dev1 evaluation (`evaluation/results.csv`): Extractive avoids hallucination and title leakage. | **Frozen** |
+| D-07 | 2026-11-12 | Reformulation: Keyword style (R-K, compact domain vocabulary, paper-faithful) chosen as primary reformulation; Descriptive style (R-N, 1–3 lead sentences) evaluated in `E7-split` diagnostic routing (R-K to BM25, R-N to Dense). | Keyword (R-K) vs Descriptive (R-N) vs Split routing | Dev1 pilot and Mukhopadhyay et al. (2026): R-K optimizes lexical BM25 recall without conversational fluff. | **Frozen** |
+| D-08 | 2026-11-12 | E8 Fusion: Protocol F2 (Two-level branch-wise RRF: 50% Branch D [Decomp] + 50% Branch R [Reform]) chosen to prevent clue facet count from numerically drowning holistic rewrite. F1 (flat) and F4 (with base original) logged for paper comparison. | F1 (flat RRF), F2 (two-level branch-wise), F3 (weighted), F4 (paper-faithful + base query) | Dev1 pilot (Plan 07 §3): F2 maintains balanced representation across both branches. | **Frozen** |
+| D-09 | 2026-11-12 | Cross-Encoder Reranker: Model `cross-encoder/ms-marco-MiniLM-L-6-v2` (`minilm`), depth $K=30$ frozen, query-side representation `orig` frozen. Deeper pools ($K=50, 100$) degrade nDCG@10 (0.0346, 0.0284) due to noise injection; natural language query (`orig`) outperforms keyword reformulation (`reform`, 0.0300) due to pretrained transformer cross-attention. Tail invariance strictly preserved for $K' \ge 30$. | MiniLM-L-6 vs MiniLM-L-12; Depth $K \in \{20, 30, 50, 100\}$; Query side: `orig`, `reform`, `concat` | Dev1 virtual depth tuning & query-side ablation (`analysis/reranking_analysis_dev1.md`). Peak nDCG@10 = 0.0386, MRR = 0.0348 at $K=30$, `orig`. | **Frozen** |
+| D-10 | | Dev-split tuning protocol: robust aggregate μ − 0.5σ across allowed dev splits; Dev2 amendment A1 yes/no | A1=no (default) / A1=yes (allow Dev2 for tuning) | — | |

@@ -1,0 +1,10 @@
+{
+  "exp": "E9",
+  "run_name": "E9_dev1_tierB_k30_reform_20261112",
+  "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+  "k_depth": 30,
+  "query_side_format": "reform",
+  "config": {},
+  "tail_invariance_verified": true,
+  "created_utc": "2026-11-12T10:50:02.487073+00:00"
+}

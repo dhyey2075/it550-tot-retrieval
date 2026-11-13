@@ -1,0 +1,18 @@
+{
+  "exp": "E2-R",
+  "config": {
+    "corpus_tier": "dense_rerank_bm25",
+    "bm25": {
+      "backend": "pyserini",
+      "k1": null,
+      "b": null,
+      "lead_chars": 1000
+    },
+    "dense": {
+      "preset": "e5-small",
+      "role": "rerank_bm25_candidates"
+    },
+    "rrf_k": 60
+  },
+  "n_queries": 142
+}

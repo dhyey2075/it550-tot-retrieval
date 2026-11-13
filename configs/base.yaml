@@ -1,0 +1,66 @@
+# Project config — fill nulls as decisions are logged in configs/decisions.md
+# Source: plan_v2/01 §6.1
+
+seed: 42
+
+# 'test' deliberately absent. Add 'dev2' only if amendment A1 is approved (D-10).
+splits:
+  train: train
+  pilot: dev1
+  final: dev3
+
+depths:
+  retrieve: 1000
+  fuse_out: 1000
+  rerank_k: 100
+
+# Robust aggregate used when comparing configs across allowed tuning splits: mean - alpha * std
+# Add "dev2" to splits only after D-10 freezes amendment A1 = yes.
+tuning:
+  splits: [train, dev1]
+  robust_alpha: 0.5
+
+rrf:
+  k: 60   # D-04 not frozen; default 60
+
+bm25:
+  backend: pyserini   # Colab: anserini prebuilt; local smoke: bm25s
+  k1: null            # D-02 not frozen — engine default until Dev1 grid
+  b: null
+  lead_chars: 1000
+  max_query_chars: 4000
+
+dense:
+  preset: e5-small    # D-03 not frozen — bake-off start point
+  model: intfloat/e5-small-v2
+  max_doc_tokens: 256
+  prefix_query: "query: "
+  prefix_doc: "passage: "
+  batch_size: 64
+
+llm:
+  provider: null      # D-05 not frozen
+  model: null
+  temperature: 0
+  max_output_tokens: 1024
+  decomposition_prompt_version: decomp_extractive_v0
+  decomposition_prompt_file: prompts/decomposition_extractive.txt
+
+cross_encoder:
+  model: null
+  max_len: null
+  batch_size: null
+
+# Corpus tier label for every run (D-01). One of: full_corpus | dense_rerank_bm25 | reduced_corpus
+# Frozen 2026-11-12: Tier B — see configs/decisions.md D-01
+corpus_tier: dense_rerank_bm25
+corpus_tier_label: "dense reranking of BM25 candidates"
+bm25_index_preference: anserini_prebuilt  # https://files.webis.de/.../trec-tot-2025-anserini-index.zip
+dense_role: rerank_bm25_candidates  # not full-corpus ANN
+
+paths:
+  data_dir: data
+  cache_dir: cache
+  runs_dir: runs
+  logs_dir: logs
+  prompts_dir: prompts

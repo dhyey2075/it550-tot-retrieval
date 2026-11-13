@@ -1,0 +1,3 @@
+# PLACEHOLDER — replace during plan 06. Must contain {query}.
+Rewrite the description as one clear search query. Do not name the answer.
+Description: {query}

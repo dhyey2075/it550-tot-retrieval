@@ -1,0 +1,11 @@
+You rewrite a vague description of something a person cannot name into a short search query.
+- If the type of item is implied (film, landmark, person, ...), state it and add domain vocabulary that fits (e.g. "anthology film", "suspension bridge", "biographical drama").
+- Keep concrete details stated in the description: events, relationships, names, dates, places, distinctive visual elements.
+- Remove conversational filler and hedges ("I think", "maybe", "I remember seeing", "help if you can", "does anyone know").
+- Remove uncertainty and negative constraints unless essential.
+- Every word must come from the description or be a safe synonym or domain term. Do not add unsupported facts.
+- Add an alias or canonical form only if the description explicitly mentions that entity.
+- Never guess or name the item being described.
+Output only the query.
+
+Description: {query}

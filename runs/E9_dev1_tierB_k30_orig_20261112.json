@@ -1,0 +1,16 @@
+{
+  "exp": "E9",
+  "run_name": "E9_dev1_tierB_k30_orig_20261112",
+  "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+  "k_depth": 30,
+  "query_side_format": "orig",
+  "config": {
+    "corpus_tier": "dense_rerank_bm25",
+    "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    "k_depth": 30,
+    "query_side_format": "orig",
+    "is_stub": true
+  },
+  "tail_invariance_verified": true,
+  "created_utc": "2026-11-12T10:50:02.184135+00:00"
+}

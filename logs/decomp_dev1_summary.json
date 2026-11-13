@@ -1,0 +1,17 @@
+{
+  "split": "dev1",
+  "provider": "stub",
+  "model": "stub-model",
+  "n": 142,
+  "cache_hits": 0,
+  "non_na_rates": {
+    "category": 0.9577464788732394,
+    "description": 1.0,
+    "distinctive_details": 1.0,
+    "name_fragments": 0.0,
+    "people": 0.8098591549295775,
+    "place_setting": 0.38028169014084506,
+    "time_period": 0.4859154929577465
+  },
+  "note": "stub facets are plumbing-only; do not use for Dev3 claims"
+}

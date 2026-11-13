@@ -1,0 +1,45 @@
+# Secrets and local env
+.env
+.env.*
+*.pem
+secrets/
+**/credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.venv312/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS and crash logs
+.DS_Store
+Thumbs.db
+*.log
+hs_err_pid*
+
+# Large / regenerable artifacts (keep caches of LLM text; exclude indices/embeddings)
+*.faiss
+*.index
+**/indices/
+**/embeddings/
+**/*.shard.npy
+**/*.shard.pt
+
+# Local data dumps (queries/qrels are committed; corpus and large samples never)
+data/corpus/
+data/samples/
+data/*.gz
+data/*.tar
+data/*.zip
+
+# Colab / Drive noise
+drive/
+sample_data/

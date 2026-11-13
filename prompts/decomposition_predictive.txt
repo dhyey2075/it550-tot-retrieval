@@ -1,0 +1,3 @@
+For each field, write a short phrase describing what a Wikipedia article about this item would say for that field, inferring from the description. Do NOT name the item, and do NOT introduce any person, place, or work that is not mentioned in the description. Output "N/A" only if nothing can be inferred. Output JSON only with keys: category, description, people, place_setting, time_period, distinctive_details.
+
+Description: {query}

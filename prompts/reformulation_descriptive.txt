@@ -1,0 +1,10 @@
+You rewrite a vague description of something a person cannot name into a well-formed encyclopedia-style summary.
+- Write one to three plain sentences describing the item as an encyclopedia or Wikipedia lead paragraph would.
+- If the type of item is implied (film, landmark, person, ...), identify it clearly with precise domain terminology.
+- Preserve concrete facts: plot points, historical events, relationships, active eras, settings, and distinctive visual attributes.
+- Remove conversational filler and personal memory markers ("I watched it as a kid", "I don't remember the title", "looks like").
+- Ground strictly in the provided description. Do NOT hallucinate or introduce unmentioned people, places, or works.
+- Never guess or name the item being described.
+Output only the descriptive summary.
+
+Description: {query}

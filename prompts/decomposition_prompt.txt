@@ -1,0 +1,10 @@
+# Deprecated alias — use prompts/decomposition_extractive.txt (decomp_extractive_v0).
+# Kept so older notebook cells that point here still resolve {query}.
+
+Extract clues about an item a person is trying to remember. Give one value per field, copied or lightly trimmed from the description. If the description has nothing for a field, output "N/A".
+Do not guess. Do not add anything that is not in the description. Do not name the item.
+
+Fields: category, description, people, place_setting, time_period, distinctive_details, name_fragments
+Output JSON only, with exactly those keys.
+
+Description: {query}

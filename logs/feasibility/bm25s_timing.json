@@ -1,0 +1,32 @@
+[
+  {
+    "n": 10000,
+    "tokenize_s": 0.262,
+    "index_s": 0.22,
+    "save_s": 0.025,
+    "docs_per_s": 20746.8,
+    "index_bytes": 8431946,
+    "extrap_index_hours": 0.09,
+    "extrap_index_GB": 5.03
+  },
+  {
+    "n": 50000,
+    "tokenize_s": 2.11,
+    "index_s": 2.014,
+    "save_s": 0.172,
+    "docs_per_s": 12124.0,
+    "index_bytes": 36911761,
+    "extrap_index_hours": 0.15,
+    "extrap_index_GB": 4.41
+  },
+  {
+    "n": 62624,
+    "tokenize_s": 2.377,
+    "index_s": 2.085,
+    "save_s": 0.207,
+    "docs_per_s": 14036.0,
+    "index_bytes": 45468974,
+    "extrap_index_hours": 0.13,
+    "extrap_index_GB": 4.33
+  }
+]

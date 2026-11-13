@@ -1,0 +1,18 @@
+Extract clues about an item a person is trying to remember. Give one value per field, copied or lightly trimmed from the description. If the description has nothing for a field, output "N/A".
+Do not guess. Do not add anything that is not in the description. Do not name the item.
+
+Fields: category, description, people, place_setting, time_period, distinctive_details, name_fragments
+Output JSON only, with exactly those keys.
+
+Examples:
+
+Description: A science-fiction movie where people enter dreams and try to plant an idea in someone's mind.
+{"category":"science-fiction movie","description":"people enter dreams and try to plant an idea in someone's mind","people":"N/A","place_setting":"dreams","time_period":"N/A","distinctive_details":"plant an idea in someone's mind","name_fragments":"N/A"}
+
+Description: I think it was a suspension bridge painted red near a foggy bay, maybe on the west coast.
+{"category":"suspension bridge","description":"painted red near a foggy bay","people":"N/A","place_setting":"foggy bay, west coast","time_period":"N/A","distinctive_details":"painted red","name_fragments":"N/A"}
+
+Description: Jazz singer from the mid-century, woman, known for a very unique voice, I almost remember the name starts with B.
+{"category":"jazz singer","description":"woman known for a very unique voice","people":"woman","place_setting":"N/A","time_period":"mid-century","distinctive_details":"unique voice","name_fragments":"starts with B"}
+
+Description: {query}

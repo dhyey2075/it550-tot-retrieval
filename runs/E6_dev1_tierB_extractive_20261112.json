@@ -1,0 +1,21 @@
+{
+  "exp": "E6",
+  "protocol": "flat",
+  "include_original": false,
+  "config": {
+    "corpus_tier": "dense_rerank_bm25",
+    "bm25": {
+      "backend": "pyserini",
+      "k1": null,
+      "b": null,
+      "lead_chars": 1000
+    },
+    "dense": {
+      "preset": "e5-small",
+      "role": "rerank_bm25_candidates"
+    },
+    "rrf_k": 60,
+    "prompt_version": "decomposition_extractive_v1"
+  },
+  "created_utc": "2026-11-12T12:24:24.404589+00:00"
+}

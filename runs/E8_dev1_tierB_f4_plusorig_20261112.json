@@ -1,0 +1,29 @@
+{
+  "exp": "E8",
+  "run_name": "E8_dev1_tierB_f4_plusorig_20261112",
+  "protocol": "f4",
+  "weight_d": 1.0,
+  "weight_r": 1.0,
+  "include_original": true,
+  "rrf_k": 60,
+  "config": {
+    "corpus_tier": "dense_rerank_bm25",
+    "bm25": {
+      "backend": "pyserini",
+      "k1": null,
+      "b": null,
+      "lead_chars": 1000
+    },
+    "dense": {
+      "preset": "e5-small",
+      "role": "rerank_bm25_candidates"
+    },
+    "rrf_k": 60,
+    "fusion_protocols": [
+      "f1",
+      "f2",
+      "f4"
+    ]
+  },
+  "created_utc": "2026-11-12T10:13:52.100526+00:00"
+}

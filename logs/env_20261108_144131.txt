@@ -1,0 +1,16 @@
+timestamp_utc: 2026-11-08T14:41:30.926584+00:00
+python: 3.9.6 (default, Aug 25 2026, 21:26:21)  [Clang 21.0.0 (clang-2100.3.34.2)]
+platform: macOS-26.6-arm64-arm-64bit
+executable: /Users/dhyeyparekh/Desktop/DAIICT/IT550/Project/.venv/bin/python
+gpu: torch unavailable (ModuleNotFoundError: No module named 'torch')
+ram: total=16.0 GB, available=5.1 GB, percent=68.4
+disk(/Users/dhyeyparekh/Desktop/DAIICT/IT550/Project): total=460.4 GB, used=167.5 GB, free=292.8 GB
+libraries:
+  - numpy: not installed (ModuleNotFoundError)
+  - pandas: not installed (ModuleNotFoundError)
+  - torch: not installed (ModuleNotFoundError)
+  - transformers: not installed (ModuleNotFoundError)
+  - sentence_transformers: not installed (ModuleNotFoundError)
+  - faiss: not installed (ModuleNotFoundError)
+  - ranx: not installed (ModuleNotFoundError)
+  - yaml: 6.0.3
