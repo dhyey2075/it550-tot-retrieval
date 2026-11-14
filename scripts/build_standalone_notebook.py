@@ -40,7 +40,7 @@ if in_colab():
     os.environ["PATH"] = f"{os.environ['JAVA_HOME']}/bin:{os.environ['PATH']}"
     subprocess.run([
         sys.executable, "-m", "pip", "install", "-q",
-        "pyserini", "sentence-transformers", "torch"
+        "pyserini", "sentence-transformers", "torch", "openai"
     ], check=True)
 
 import torch
@@ -326,8 +326,183 @@ for q in queries:
 
 evaluate_run("E9", "E9_CrossEncoder_MiniLM", e9_rankings)""")
 
-# Cell 10: Plan 09 & 10 Results & Diagnostics
-add_md("""## 10. Plans 09 & 10: Final Results Table & Quantitative Diagnostics""")
+# Cell 10: OpenAI Client Configuration
+add_md("""## 10. OpenAI LLM Configuration (for Advanced HyDE & Reranking)""")
+add_code("""import os
+from openai import OpenAI
+
+OPENAI_API_KEY = ""
+
+try:
+    from google.colab import userdata
+    if not OPENAI_API_KEY:
+        OPENAI_API_KEY = userdata.get("OPENAI_API_KEY")
+except Exception:
+    pass
+
+if not OPENAI_API_KEY:
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+if openai_client:
+    print("OpenAI client initialized successfully.")
+else:
+    print("Notice: Set OPENAI_API_KEY above to execute E10 and E12.")""")
+
+# Cell 11: E10 HyDE & Candidate Title Expansion
+add_md("""## 11. Advanced E10: HyDE & Candidate Title Expansion""")
+add_code("""openai_cache_file = Path("cache/openai_hyde_cache.jsonl")
+openai_cache = {}
+if openai_cache_file.exists():
+    with open(openai_cache_file, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                item = json.loads(line)
+                openai_cache[item["qid"]] = item
+
+e10_rankings = {}
+
+if openai_client:
+    print("Generating HyDE Wikipedia leads & candidate titles with GPT-4o-mini...")
+    for q in queries:
+        qid = str(q.get("qid") or q.get("query_id") or "")
+        qtext = str(q.get("query") or q.get("text") or "")
+        
+        if qid not in openai_cache:
+            prompt = (
+                "You are an expert encyclopedic researcher. A user is describing an entity they forgot:\\n"
+                + qtext + "\\n\\n"
+                + "1. Guess 5 most likely titles (movie, book, song, or person).\\n"
+                + "2. Write a short 2-3 sentence encyclopedic Wikipedia lead paragraph for this entity.\\n\\n"
+                + "Respond in strict JSON:\\n{\\\"titles\\\": [\\\"Title 1\\\", \\\"Title 2\\\", ...], \\\"lead\\\": \\\"...\\\"}"
+            )
+            try:
+                resp = openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"},
+                    temperature=0.0
+                )
+                data = json.loads(resp.choices[0].message.content)
+                openai_cache[qid] = data
+                with open(openai_cache_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"qid": qid, **data}) + "\\n")
+            except Exception as e:
+                print(f"Error on {qid}: {e}")
+                openai_cache[qid] = {"titles": [], "lead": ""}
+        
+        cached = openai_cache.get(qid, {})
+        titles = " ".join(cached.get("titles", []))
+        lead = cached.get("lead", "")
+        expanded_query = f"{titles} {lead}".strip() or qtext
+        
+        hits_exp = searcher.search(expanded_query, k=1000)
+        exp_cands = [h.docid for h in hits_exp]
+        
+        e10_rankings[qid] = rrf_fuse([e1_rankings.get(qid, []), exp_cands], k=60)
+
+    evaluate_run("E10", "E10_HyDE_Title_Expansion", e10_rankings)
+else:
+    print("Skipping E10: OpenAI API key not provided.")""")
+
+# Cell 12: E11 BGE-Reranker-Base
+add_md("""## 12. Advanced E11: Modern Neural Cross-Encoder (BGE-Reranker)""")
+add_code("""from sentence_transformers import CrossEncoder
+
+bge_model = CrossEncoder("BAAI/bge-reranker-base", device=device, max_length=512)
+
+e11_rankings = {}
+base_pool = e10_rankings if e10_rankings else e8_rankings
+
+print("Running E11 (BGE-Reranker-Base cross-attention reranking top-30)...")
+for q in queries:
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    qtext = str(q.get("query") or q.get("text") or "")
+    candidates = base_pool.get(qid, [])
+    top_k = candidates[:30]
+    tail = candidates[30:]
+    
+    pairs = [(qtext, get_doc_text(d)) for d in top_k]
+    scores = bge_model.predict(pairs, batch_size=32, show_progress_bar=False)
+    order = np.argsort(-scores)
+    reranked_top = [top_k[i] for i in order]
+    
+    e11_rankings[qid] = reranked_top + tail
+
+evaluate_run("E11", "E11_BGE_CrossEncoder", e11_rankings)""")
+
+# Cell 13: E12 Listwise LLM Reranking (GPT-4o-mini)
+add_md("""## 13. Advanced E12: Listwise LLM Reranking (GPT-4o-mini)""")
+add_code("""listwise_cache_file = Path("cache/openai_listwise_cache.jsonl")
+listwise_cache = {}
+if listwise_cache_file.exists():
+    with open(listwise_cache_file, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                item = json.loads(line)
+                listwise_cache[item["qid"]] = item["ranked_ids"]
+
+e12_rankings = {}
+pool_for_llm = e11_rankings if e11_rankings else (e10_rankings if e10_rankings else e9_rankings)
+N_RERANK = 20
+
+if openai_client:
+    print(f"Running E12 (Listwise LLM Reranking on top-{N_RERANK} candidates)...")
+    for q in queries:
+        qid = str(q.get("qid") or q.get("query_id") or "")
+        qtext = str(q.get("query") or q.get("text") or "")
+        candidates = pool_for_llm.get(qid, [])
+        top_cands = candidates[:N_RERANK]
+        tail = candidates[N_RERANK:]
+        
+        if qid not in listwise_cache:
+            cand_text_list = []
+            for idx, d in enumerate(top_cands, start=1):
+                txt = get_doc_text(d, lead_chars=300)
+                cand_text_list.append(f"[{idx}] {txt}")
+            
+            items_str = "\\n".join(cand_text_list)
+            prompt = (
+                "You are an expert search engine reranker for Tip-of-the-Tongue queries.\\n"
+                + "Query description: \"" + qtext + "\"\\n\\n"
+                + "Candidate Wikipedia articles:\\n" + items_str + "\\n\\n"
+                + "Task: Rank ALL candidates from most likely to least likely to be the entity described.\\n"
+                + "Respond in strict JSON with a list of the 1-based integer IDs in ranked order, e.g. {\\\"ranking\\\": [3, 1, 5, 2, ...]}"
+            )
+            
+            try:
+                resp = openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"},
+                    temperature=0.0
+                )
+                data = json.loads(resp.choices[0].message.content)
+                raw_order = data.get("ranking", [])
+                valid_indices = []
+                for x in raw_order:
+                    if isinstance(x, int) and 1 <= x <= len(top_cands) and x not in valid_indices:
+                        valid_indices.append(x)
+                for i in range(1, len(top_cands) + 1):
+                    if i not in valid_indices:
+                        valid_indices.append(i)
+                listwise_cache[qid] = valid_indices
+                with open(listwise_cache_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"qid": qid, "ranked_ids": valid_indices}) + "\\n")
+            except Exception as e:
+                print(f"Listwise error on {qid}: {e}")
+                listwise_cache[qid] = list(range(1, len(top_cands) + 1))
+        
+        ranked_indices = listwise_cache.get(qid, list(range(1, len(top_cands) + 1)))
+        reranked_top = [top_cands[i - 1] for i in ranked_indices]
+        e12_rankings[qid] = reranked_top + tail
+
+    evaluate_run("E12", "E12_Listwise_GPT4o_Mini", e12_rankings)
+else:
+    print("Skipping E12: OpenAI API key not provided.")""")
+
+# Cell 14: Comprehensive Results & Export
+add_md("""## 14. Comprehensive Results Table & Structured Export (E1 – E12)""")
 add_code("""fieldnames = ["exp_id", "run_name", "n_queries", "ndcg10", "mrr", "r10", "r100", "r1000"]
 with open("results/results.csv", "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -335,12 +510,12 @@ with open("results/results.csv", "w", newline="", encoding="utf-8") as f:
     for row in results_log:
         writer.writerow(row)
 
-print("=== OFFICIAL EXPERIMENTAL RESULTS (E1 - E9) ===")
-header = f"| {'Exp':<8} | {'Method':<24} | {'nDCG@10':<9} | {'MRR':<8} | {'R@10':<8} | {'R@100':<8} | {'R@1000':<8} |"
+print("=== COMPREHENSIVE EXPERIMENTAL RESULTS (E1 - E12) ===")
+header = f"| {'Exp':<8} | {'Method':<26} | {'nDCG@10':<9} | {'MRR':<8} | {'R@10':<8} | {'R@100':<8} | {'R@1000':<8} |"
 print(header)
 print("|" + "|".join(["-" * (len(col) + 2) for col in header.split("|")[1:-1]]) + "|")
 for r in results_log:
-    print(f"| {r['exp_id']:<8} | {r['run_name']:<24} | {r['ndcg10']:<9.4f} | {r['mrr']:<8.4f} | {r['r10']:<8.4f} | {r['r100']:<8.4f} | {r['r1000']:<8.4f} |")
+    print(f"| {r['exp_id']:<8} | {r['run_name']:<26} | {r['ndcg10']:<9.4f} | {r['mrr']:<8.4f} | {r['r10']:<8.4f} | {r['r100']:<8.4f} | {r['r1000']:<8.4f} |")
 
 print()
 print("Results successfully stored in results/results.csv")""")
