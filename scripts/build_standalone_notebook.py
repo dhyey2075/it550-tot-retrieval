@@ -19,11 +19,13 @@ def add_code(source):
         "source": [line + "\n" for line in source.strip().split("\n")]
     })
 
-# Cell 0: Title
+# Title
 add_md("""# LLM-Enhanced Tip-of-the-Tongue Retrieval (IT550)
-### Fully Self-Contained Standalone Reproduction Notebook (E1 – E9)
+### Complete End-to-End Reproduction Notebook (Path A: Full 6.4M Corpus & Path B: GPU Sub-Corpus)
 
-This notebook runs completely independently in Google Colab without requiring any repository cloning or local folders. All dependencies, datasets, indexes, and assets are fetched automatically.""")
+This notebook is 100% self-contained and runs on a free Google Colab T4 GPU:
+- **Path A (Official 6.4M Wikipedia Corpus - Tier B):** Evaluates E1 through E12 (BM25, Clue Decomposition, Reformulation, Fusion, Cross-Encoder, HyDE, and Listwise LLM).
+- **Path B (GPU Dense Vector Retrieval - Tier C Sub-Corpus):** Encodes a hard-distractor sub-corpus into T4 GPU memory to demonstrate pure dense vector search without the 6.4M BM25 funnel bottleneck.""")
 
 # Cell 1: Environment Setup
 add_md("""## 1. Environment & Dependencies Setup""")
@@ -107,11 +109,12 @@ def load_queries(path):
 qrels = load_qrels("data/dev1-qrels.txt")
 queries = load_queries("data/dev1-queries.jsonl")
 
-results_log = []
+path_a_results = []
+path_b_results = []
 
-def evaluate_run(exp_id, run_name, rankings, depth=1000):
+def evaluate_run(exp_id, run_name, rankings, target_qrels=qrels, depth=1000, store_list=path_a_results):
     rr_list, ndcg_list, r10_list, r100_list, r1000_list = [], [], [], [], []
-    for qid, target in qrels.items():
+    for qid, target in target_qrels.items():
         cands = rankings.get(qid, [])[:depth]
         rank = None
         for i, docid in enumerate(cands, start=1):
@@ -131,7 +134,7 @@ def evaluate_run(exp_id, run_name, rankings, depth=1000):
             r100_list.append(1.0 if rank <= 100 else 0.0)
             r1000_list.append(1.0 if rank <= 1000 else 0.0)
     
-    n = len(qrels)
+    n = len(target_qrels)
     metrics = {
         "exp_id": exp_id,
         "run_name": run_name,
@@ -142,12 +145,12 @@ def evaluate_run(exp_id, run_name, rankings, depth=1000):
         "r100": sum(r100_list) / n,
         "r1000": sum(r1000_list) / n,
     }
-    results_log.append(metrics)
+    store_list.append(metrics)
     print(f"[{exp_id}] nDCG@10: {metrics['ndcg10']:.4f} | MRR: {metrics['mrr']:.4f} | R@10: {metrics['r10']:.4f} | R@1000: {metrics['r1000']:.4f}")
     return metrics""")
 
 # Cell 4: Core Retrieval Primitives
-add_md("""## 4. Retrieval Primitives: BM25, Text Lookup, Dense Reranking, and RRF""")
+add_md("""## 4. Retrieval Primitives: BM25, Text Lookup, Dense Model, and RRF""")
 add_code("""from collections import defaultdict
 from pyserini.search.lucene import LuceneSearcher
 from sentence_transformers import SentenceTransformer
@@ -186,8 +189,13 @@ def rerank_dense(query, candidate_docids, top_n=1000):
     ranked_indices = np.argsort(-scores)
     return [docids[i] for i in ranked_indices]""")
 
-# Cell 5: Plan 04 Baselines (E1, E2-R, E3)
-add_md("""## 5. Plan 04: Baselines (E1 BM25, E2-R Dense, E3 Hybrid RRF)""")
+# PATH A SECTION
+add_md("""# ============================================================
+# PATH A: Full 6.4M Wikipedia Corpus (Tier B & Upgrades)
+# ============================================================""")
+
+# Cell 5: Plan 04 Baselines
+add_md("""## 5. Path A — Plan 04: Baselines (E1 BM25, E2-R Dense, E3 Hybrid RRF)""")
 add_code("""e1_rankings = {}
 e2r_rankings = {}
 e3_rankings = {}
@@ -217,8 +225,8 @@ for q in queries:
 
 evaluate_run("E3", "E3_BM25_Dense_RRF", e3_rankings)""")
 
-# Cell 6: Plan 05 LLM Query Decomposition (E4, E4c, E5-R, E6)
-add_md("""## 6. Plan 05: LLM Query Decomposition (E4, E4c, E5-R, E6)""")
+# Cell 6: Plan 05 Decomposition
+add_md("""## 6. Path A — Plan 05: LLM Query Decomposition (E4, E4c, E5-R, E6)""")
 add_code("""facets_by_qid = {}
 with open("cache/facets_dev1_extractive.jsonl", "r", encoding="utf-8") as f:
     for line in f:
@@ -262,8 +270,8 @@ for q in queries:
 evaluate_run("E5-R", "E5-R_Dense_Facets", e5r_rankings)
 evaluate_run("E6", "E6_Extractive_Fusion", e6_rankings)""")
 
-# Cell 7: Plan 06 LLM Query Reformulation (E7 Suite)
-add_md("""## 7. Plan 06: LLM Query Reformulation (E7 Suite)""")
+# Cell 7: Plan 06 Reformulation
+add_md("""## 7. Path A — Plan 06: LLM Query Reformulation (E7 Suite)""")
 add_code("""reform_by_qid = {}
 with open("cache/reformulations_dev1_keyword.jsonl", "r", encoding="utf-8") as f:
     for line in f:
@@ -286,8 +294,8 @@ for q in queries:
 evaluate_run("E7-bm25", "E7_Keyword_BM25", e7_bm25_rankings)
 evaluate_run("E7-dense", "E7_Keyword_Dense", e7_dense_rankings)""")
 
-# Cell 8: Plan 07 Two-Level Fusion (E8 Suite)
-add_md("""## 8. Plan 07: Multi-Branch Pipeline Fusion (E8 Suite)""")
+# Cell 8: Plan 07 Two-Level Fusion
+add_md("""## 8. Path A — Plan 07: Multi-Branch Pipeline Fusion (E8 Suite)""")
 add_code("""e8_rankings = {}
 
 print("Running E8 (Two-Level Fusion: E1 + E4c + E7-Dense)...")
@@ -300,8 +308,8 @@ for q in queries:
 
 evaluate_run("E8-F4", "E8_MultiBranch_Fusion", e8_rankings)""")
 
-# Cell 9: Plan 08 Cross-Encoder Reranking (E9 Suite)
-add_md("""## 9. Plan 08: Cross-Encoder Reranking (E9 Suite)""")
+# Cell 9: Plan 08 Cross-Encoder Reranking
+add_md("""## 9. Path A — Plan 08: Cross-Encoder Reranking (E9 Suite)""")
 add_code("""from sentence_transformers import CrossEncoder
 
 ce_model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", device=device, max_length=512)
@@ -327,7 +335,7 @@ for q in queries:
 evaluate_run("E9", "E9_CrossEncoder_MiniLM", e9_rankings)""")
 
 # Cell 10: OpenAI Client Configuration
-add_md("""## 10. OpenAI LLM Configuration (for Advanced HyDE & Reranking)""")
+add_md("""## 10. OpenAI LLM Configuration (for E10 HyDE & E12 Reranking)""")
 add_code("""import os
 from openai import OpenAI
 
@@ -350,7 +358,7 @@ else:
     print("Notice: Set OPENAI_API_KEY above to execute E10 and E12.")""")
 
 # Cell 11: E10 HyDE & Candidate Title Expansion
-add_md("""## 11. Advanced E10: HyDE & Candidate Title Expansion""")
+add_md("""## 11. Path A — E10: HyDE & Candidate Title Expansion""")
 add_code("""openai_cache_file = Path("cache/openai_hyde_cache.jsonl")
 openai_cache = {}
 if openai_cache_file.exists():
@@ -406,7 +414,7 @@ else:
     print("Skipping E10: OpenAI API key not provided.")""")
 
 # Cell 12: E11 BGE-Reranker-Base
-add_md("""## 12. Advanced E11: Modern Neural Cross-Encoder (BGE-Reranker)""")
+add_md("""## 12. Path A — E11: Modern Neural Cross-Encoder (BGE-Reranker)""")
 add_code("""from sentence_transformers import CrossEncoder
 
 bge_model = CrossEncoder("BAAI/bge-reranker-base", device=device, max_length=512)
@@ -432,7 +440,7 @@ for q in queries:
 evaluate_run("E11", "E11_BGE_CrossEncoder", e11_rankings)""")
 
 # Cell 13: E12 Listwise LLM Reranking (GPT-4o-mini)
-add_md("""## 13. Advanced E12: Listwise LLM Reranking (GPT-4o-mini)""")
+add_md("""## 13. Path A — E12: Listwise LLM Reranking (GPT-4o-mini)""")
 add_code("""listwise_cache_file = Path("cache/openai_listwise_cache.jsonl")
 listwise_cache = {}
 if listwise_cache_file.exists():
@@ -501,24 +509,171 @@ if openai_client:
 else:
     print("Skipping E12: OpenAI API key not provided.")""")
 
-# Cell 14: Comprehensive Results & Export
-add_md("""## 14. Comprehensive Results Table & Structured Export (E1 – E12)""")
-add_code("""fieldnames = ["exp_id", "run_name", "n_queries", "ndcg10", "mrr", "r10", "r100", "r1000"]
+# PATH B SECTION
+add_md("""# ============================================================
+# PATH B: GPU Dense Retrieval on Controlled Sub-Corpus (Tier C)
+# ============================================================
+
+In Path B, we build a controlled sub-corpus (~10,000 documents) containing:
+1. **All true targets** from `qrels` (ensuring 100% target reachability).
+2. **Hard BM25 distractors** from all queries.
+
+All document vectors fit into T4 GPU memory (~70 MB), enabling **100% pure dense vector search** without BM25 filtering.""")
+
+# Cell 14: Sub-Corpus Construction & GPU Embedding
+add_md("""## 14. Path B — Sub-Corpus Extraction & GPU Dense Vector Indexing""")
+add_code("""subcorpus_ids = set(qrels.values())
+for qid in e1_rankings:
+    subcorpus_ids.update(e1_rankings[qid][:70])
+
+subcorpus_docids = sorted(list(subcorpus_ids))
+print(f"Constructed sub-corpus with {len(subcorpus_docids)} documents (Targets + Hard BM25 Distractors).")
+
+subcorpus_texts = [get_doc_text(d) for d in subcorpus_docids]
+
+print("Encoding entire sub-corpus with e5-small-v2 on T4 GPU...")
+doc_embs = dense_model.encode(
+    ["passage: " + t for t in subcorpus_texts],
+    batch_size=256,
+    normalize_embeddings=True,
+    convert_to_tensor=True,
+    device=device,
+    show_progress_bar=True
+)
+print(f"Sub-corpus vector index ready in GPU VRAM: {doc_embs.shape}")""")
+
+# Cell 15: Path B Retrieval
+add_md("""## 15. Path B — Pure Dense GPU Search vs. Sub-Corpus BM25 vs. Hybrid RRF""")
+add_code("""sub_dense_rankings = {}
+
+print("Running Pure Dense GPU Retrieval across all sub-corpus documents...")
+q_texts = [q["query"] for q in queries]
+q_embs = dense_model.encode(
+    ["query: " + t for t in q_texts],
+    normalize_embeddings=True,
+    convert_to_tensor=True,
+    device=device
+)
+
+similarity_matrix = torch.matmul(q_embs, doc_embs.T)
+
+for i, q in enumerate(queries):
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    top_indices = torch.topk(similarity_matrix[i], k=min(1000, len(subcorpus_docids))).indices.cpu().numpy()
+    sub_dense_rankings[qid] = [subcorpus_docids[idx] for idx in top_indices]
+
+evaluate_run("PathB-Dense", "SubCorpus_Pure_Dense_GPU", sub_dense_rankings, store_list=path_b_results)
+
+sub_bm25_rankings = {}
+for q in queries:
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    filtered = [d for d in e1_rankings.get(qid, []) if d in subcorpus_ids]
+    sub_bm25_rankings[qid] = filtered
+
+evaluate_run("PathB-BM25", "SubCorpus_BM25_Lexical", sub_bm25_rankings, store_list=path_b_results)
+
+sub_hybrid_rankings = {}
+for q in queries:
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    sub_hybrid_rankings[qid] = rrf_fuse([sub_bm25_rankings.get(qid, []), sub_dense_rankings.get(qid, [])], k=60)
+
+evaluate_run("PathB-Hybrid", "SubCorpus_Hybrid_RRF", sub_hybrid_rankings, store_list=path_b_results)""")
+
+# Cell 16: Path B Reranking
+add_md("""## 16. Path B — Neural Cross-Encoder & Listwise LLM Reranking""")
+add_code("""sub_bge_rankings = {}
+
+print("Running BGE Cross-Encoder on Path B top-30 candidates...")
+for q in queries:
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    qtext = str(q.get("query") or q.get("text") or "")
+    candidates = sub_hybrid_rankings.get(qid, [])
+    top_k = candidates[:30]
+    tail = candidates[30:]
+    
+    pairs = [(qtext, get_doc_text(d)) for d in top_k]
+    scores = bge_model.predict(pairs, batch_size=32, show_progress_bar=False)
+    order = np.argsort(-scores)
+    reranked_top = [top_k[i] for i in order]
+    
+    sub_bge_rankings[qid] = reranked_top + tail
+
+evaluate_run("PathB-BGE", "SubCorpus_BGE_CrossEncoder", sub_bge_rankings, store_list=path_b_results)
+
+sub_llm_rankings = {}
+if openai_client:
+    print("Running Listwise LLM Reranking on Path B candidates...")
+    for q in queries:
+        qid = str(q.get("qid") or q.get("query_id") or "")
+        qtext = str(q.get("query") or q.get("text") or "")
+        candidates = sub_bge_rankings.get(qid, [])
+        top_cands = candidates[:20]
+        tail = candidates[20:]
+        
+        cand_text_list = []
+        for idx, d in enumerate(top_cands, start=1):
+            txt = get_doc_text(d, lead_chars=300)
+            cand_text_list.append(f"[{idx}] {txt}")
+        
+        items_str = "\\n".join(cand_text_list)
+        prompt = (
+            "You are an expert search engine reranker for Tip-of-the-Tongue queries.\\n"
+            + "Query description: \"" + qtext + "\"\\n\\n"
+            + "Candidate Wikipedia articles:\\n" + items_str + "\\n\\n"
+            + "Task: Rank ALL candidates from most likely to least likely to be the entity described.\\n"
+            + "Respond in strict JSON with a list of the 1-based integer IDs in ranked order, e.g. {\\\"ranking\\\": [3, 1, 5, 2, ...]}"
+        )
+        try:
+            resp = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+                temperature=0.0
+            )
+            data = json.loads(resp.choices[0].message.content)
+            raw_order = data.get("ranking", [])
+            valid_indices = []
+            for x in raw_order:
+                if isinstance(x, int) and 1 <= x <= len(top_cands) and x not in valid_indices:
+                    valid_indices.append(x)
+            for i in range(1, len(top_cands) + 1):
+                if i not in valid_indices:
+                    valid_indices.append(i)
+        except Exception:
+            valid_indices = list(range(1, len(top_cands) + 1))
+        
+        reranked_top = [top_cands[i - 1] for i in valid_indices]
+        sub_llm_rankings[qid] = reranked_top + tail
+    
+    evaluate_run("PathB-LLM", "SubCorpus_Listwise_GPT4o", sub_llm_rankings, store_list=path_b_results)
+else:
+    print("Skipping Path B LLM reranking: OpenAI API key not provided.")""")
+
+# Cell 17: Comprehensive Comparison & CSV Export
+add_md("""## 17. Final Synthesis: Path A vs. Path B Benchmark Comparison""")
+add_code("""all_results = path_a_results + path_b_results
+
+fieldnames = ["exp_id", "run_name", "n_queries", "ndcg10", "mrr", "r10", "r100", "r1000"]
 with open("results/results.csv", "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=fieldnames)
     writer.writeheader()
-    for row in results_log:
+    for row in all_results:
         writer.writerow(row)
 
-print("=== COMPREHENSIVE EXPERIMENTAL RESULTS (E1 - E12) ===")
-header = f"| {'Exp':<8} | {'Method':<26} | {'nDCG@10':<9} | {'MRR':<8} | {'R@10':<8} | {'R@100':<8} | {'R@1000':<8} |"
-print(header)
-print("|" + "|".join(["-" * (len(col) + 2) for col in header.split("|")[1:-1]]) + "|")
-for r in results_log:
-    print(f"| {r['exp_id']:<8} | {r['run_name']:<26} | {r['ndcg10']:<9.4f} | {r['mrr']:<8.4f} | {r['r10']:<8.4f} | {r['r100']:<8.4f} | {r['r1000']:<8.4f} |")
+def print_table(title, rows):
+    print()
+    print(f"=== {title} ===")
+    header = f"| {'Exp':<12} | {'Method':<28} | {'nDCG@10':<9} | {'MRR':<8} | {'R@10':<8} | {'R@100':<8} | {'R@1000':<8} |"
+    print(header)
+    print("|" + "|".join(["-" * (len(col) + 2) for col in header.split("|")[1:-1]]) + "|")
+    for r in rows:
+        print(f"| {r['exp_id']:<12} | {r['run_name']:<28} | {r['ndcg10']:<9.4f} | {r['mrr']:<8.4f} | {r['r10']:<8.4f} | {r['r100']:<8.4f} | {r['r1000']:<8.4f} |")
+
+print_table("PATH A: FULL 6.4M WIKIPEDIA CORPUS (TIER B & UPGRADES)", path_a_results)
+print_table("PATH B: DEDICATED GPU VECTOR RETRIEVAL (TIER C SUB-CORPUS)", path_b_results)
 
 print()
-print("Results successfully stored in results/results.csv")""")
+print("All evaluation rows successfully exported to results/results.csv")""")
 
 out_path = Path("notebooks/tot_standalone_colab.ipynb")
 nb = {
@@ -533,4 +688,4 @@ nb = {
     "nbformat_minor": 5
 }
 out_path.write_text(json.dumps(nb, indent=2), encoding="utf-8")
-print(f"Generated standalone notebook at {out_path} ({out_path.stat().st_size / 1024:.1f} KB)")
+print(f"Generated complete standalone notebook at {out_path} ({out_path.stat().st_size / 1024:.1f} KB)")
