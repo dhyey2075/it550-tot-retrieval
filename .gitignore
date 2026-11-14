@@ -37,6 +37,7 @@ hs_err_pid*
 data/corpus/
 data/samples/
 data/*.gz
+!data/dev1_snippets.jsonl.gz
 data/*.tar
 data/*.zip
 

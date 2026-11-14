@@ -68,8 +68,10 @@ download("https://zenodo.org/records/18235970/files/dev1-2025-queries.jsonl?down
 download("https://zenodo.org/records/18235970/files/dev1-2025-qrel.txt?download=1", "data/dev1-qrels.txt")
 
 gh_cache = "https://raw.githubusercontent.com/dhyey2075/it550-tot-retrieval/main/cache"
+gh_data = "https://raw.githubusercontent.com/dhyey2075/it550-tot-retrieval/main/data"
 download(f"{gh_cache}/facets_dev1_extractive.jsonl", "cache/facets_dev1_extractive.jsonl")
 download(f"{gh_cache}/reformulations_dev1_keyword.jsonl", "cache/reformulations_dev1_keyword.jsonl")
+download(f"{gh_data}/dev1_snippets.jsonl.gz", "data/dev1_snippets.jsonl.gz")
 
 index_zip = Path("indices/trec-tot-2025-anserini-index.zip")
 download("https://files.webis.de/data-in-progress/trec-tot-2025-indices/trec-tot-2025-anserini-index.zip", index_zip)
@@ -151,22 +153,43 @@ def evaluate_run(exp_id, run_name, rankings, target_qrels=qrels, depth=1000, sto
 
 # Cell 4: Core Retrieval Primitives
 add_md("""## 4. Retrieval Primitives: BM25, Text Lookup, Dense Model, and RRF""")
-add_code("""from collections import defaultdict
+add_code("""import gzip
+from collections import defaultdict
 from pyserini.search.lucene import LuceneSearcher
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
 searcher = LuceneSearcher(str(index_dir))
 
-def get_doc_text(docid, lead_chars=1000):
+doc_text_cache = {}
+snippets_path = Path("data/dev1_snippets.jsonl.gz")
+if snippets_path.exists():
+    with gzip.open(snippets_path, "rt", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                item = json.loads(line)
+                did = str(item.get("id") or "")
+                title = item.get("title", "")
+                txt = item.get("text", "")
+                doc_text_cache[did] = f"{title}: {txt}".strip()
+    print(f"Loaded {len(doc_text_cache)} candidate snippets into cache.")
+
+def get_doc_text(docid, lead_chars=500):
+    docid = str(docid)
+    if docid in doc_text_cache:
+        return doc_text_cache[docid][:lead_chars]
     try:
-        raw = searcher.doc(str(docid)).raw()
+        raw = searcher.doc(docid).raw()
         data = json.loads(raw) if raw and raw.startswith("{") else {}
         title = data.get("title", "")
         text = data.get("text") or data.get("contents") or raw or ""
-        return f"{title} {text[:lead_chars]}".strip()
+        res = f"{title}: {text}".strip()
+        if res:
+            doc_text_cache[docid] = res
+            return res[:lead_chars]
     except Exception:
-        return ""
+        pass
+    return f"Document {docid}"
 
 def rrf_fuse(ranked_lists, k=60, top_n=1000):
     scores = defaultdict(float)
@@ -675,7 +698,7 @@ print_table("PATH B: DEDICATED GPU VECTOR RETRIEVAL (TIER C SUB-CORPUS)", path_b
 print()
 print("All evaluation rows successfully exported to results/results.csv")""")
 
-out_path = Path("notebooks/tot_standalone_colab.ipynb")
+out_paths = [Path("notebooks/tot_standalone_colab.ipynb"), Path("tot_standalone_colab.ipynb")]
 nb = {
     "cells": cells,
     "metadata": {
@@ -687,5 +710,6 @@ nb = {
     "nbformat": 4,
     "nbformat_minor": 5
 }
-out_path.write_text(json.dumps(nb, indent=2), encoding="utf-8")
-print(f"Generated complete standalone notebook at {out_path} ({out_path.stat().st_size / 1024:.1f} KB)")
+for p in out_paths:
+    p.write_text(json.dumps(nb, indent=2), encoding="utf-8")
+    print(f"Generated standalone notebook at {p} ({p.stat().st_size / 1024:.1f} KB)")
