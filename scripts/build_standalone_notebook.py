@@ -98,7 +98,10 @@ def load_queries(path):
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip():
-                queries.append(json.loads(line))
+                obj = json.loads(line)
+                qid = str(obj.get("query_id") or obj.get("qid") or obj.get("id") or "").strip()
+                query = str(obj.get("query") or obj.get("text") or "").strip()
+                queries.append({"qid": qid, "query": query})
     return queries
 
 qrels = load_qrels("data/dev1-qrels.txt")
@@ -191,23 +194,25 @@ e3_rankings = {}
 
 print("Running E1 (BM25)...")
 for q in queries:
-    qid = q["qid"]
-    hits = searcher.search(q["query"], k=1000)
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    qtext = str(q.get("query") or q.get("text") or "")
+    hits = searcher.search(qtext, k=1000)
     e1_rankings[qid] = [h.docid for h in hits]
 
 evaluate_run("E1", "E1_BM25_Baseline", e1_rankings)
 
 print("Running E2-R (Dense Reranking)...")
 for q in queries:
-    qid = q["qid"]
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    qtext = str(q.get("query") or q.get("text") or "")
     cands = e1_rankings.get(qid, [])
-    e2r_rankings[qid] = rerank_dense(q["query"], cands, top_n=1000)
+    e2r_rankings[qid] = rerank_dense(qtext, cands, top_n=1000)
 
 evaluate_run("E2-R", "E2-R_Dense_Rerank", e2r_rankings)
 
 print("Running E3 (Hybrid RRF Fusion)...")
 for q in queries:
-    qid = q["qid"]
+    qid = str(q.get("qid") or q.get("query_id") or "")
     e3_rankings[qid] = rrf_fuse([e1_rankings.get(qid, []), e2r_rankings.get(qid, [])], k=60)
 
 evaluate_run("E3", "E3_BM25_Dense_RRF", e3_rankings)""")
@@ -227,7 +232,8 @@ e6_rankings = {}
 
 print("Running E4 (Separate Clues RRF) and E4c (Concatenated Clues)...")
 for q in queries:
-    qid = q["qid"]
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    qtext = str(q.get("query") or q.get("text") or "")
     facets = facets_by_qid.get(qid, {})
     valid_facets = [str(v).strip() for v in facets.values() if v and str(v).strip() and str(v).lower() != "n/a"]
     
@@ -238,7 +244,7 @@ for q in queries:
     
     e4_rankings[qid] = rrf_fuse(facet_lists, k=60) if facet_lists else e1_rankings.get(qid, [])
     
-    concat_query = " ".join(valid_facets) if valid_facets else q["query"]
+    concat_query = " ".join(valid_facets) if valid_facets else qtext
     hits_concat = searcher.search(concat_query, k=1000)
     e4c_rankings[qid] = [h.docid for h in hits_concat]
 
@@ -247,9 +253,10 @@ evaluate_run("E4c", "E4c_Clue_Concatenation", e4c_rankings)
 
 print("Running E5-R (Dense Facet Search) and E6 (Extractive Fusion)...")
 for q in queries:
-    qid = q["qid"]
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    qtext = str(q.get("query") or q.get("text") or "")
     cands = e4_rankings.get(qid, [])
-    e5r_rankings[qid] = rerank_dense(q["query"], cands, top_n=1000)
+    e5r_rankings[qid] = rerank_dense(qtext, cands, top_n=1000)
     e6_rankings[qid] = rrf_fuse([e1_rankings.get(qid, []), e4c_rankings.get(qid, [])], k=60)
 
 evaluate_run("E5-R", "E5-R_Dense_Facets", e5r_rankings)
@@ -268,8 +275,9 @@ e7_dense_rankings = {}
 
 print("Running E7-BM25 and E7-Dense...")
 for q in queries:
-    qid = q["qid"]
-    ref_q = reform_by_qid.get(qid, q["query"])
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    qtext = str(q.get("query") or q.get("text") or "")
+    ref_q = reform_by_qid.get(qid, qtext)
     hits = searcher.search(ref_q, k=1000)
     cands = [h.docid for h in hits]
     e7_bm25_rankings[qid] = cands
@@ -284,7 +292,7 @@ add_code("""e8_rankings = {}
 
 print("Running E8 (Two-Level Fusion: E1 + E4c + E7-Dense)...")
 for q in queries:
-    qid = q["qid"]
+    qid = str(q.get("qid") or q.get("query_id") or "")
     b1 = e1_rankings.get(qid, [])
     b2 = e4c_rankings.get(qid, [])
     b3 = e7_dense_rankings.get(qid, [])
@@ -303,12 +311,13 @@ K_CE = 30
 
 print(f"Running E9 (Cross-Encoder reranking top-{K_CE} candidates)...")
 for q in queries:
-    qid = q["qid"]
+    qid = str(q.get("qid") or q.get("query_id") or "")
+    qtext = str(q.get("query") or q.get("text") or "")
     candidates = e8_rankings.get(qid, [])
     top_k = candidates[:K_CE]
     tail = candidates[K_CE:]
     
-    pairs = [(q["query"], get_doc_text(d)) for d in top_k]
+    pairs = [(qtext, get_doc_text(d)) for d in top_k]
     scores = ce_model.predict(pairs, batch_size=64, show_progress_bar=False)
     order = np.argsort(-scores)
     reranked_top = [top_k[i] for i in order]
